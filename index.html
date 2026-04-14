@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Atlas — Helpdesk Intelligence Platform</title>
-    <link rel="stylesheet" href="/css/atlas.css">
-    <script defer src="/lib/alpine.min.js"></script>
+    <link rel="stylesheet" href="css/atlas.css">
+    <script defer src="lib/alpine.min.js"></script>
 </head>
 
 <body
@@ -113,7 +113,7 @@
             </form>
             <p class="mt-3 text-xs text-gray-600">
                 Analysing a suspicious email? Use
-                <a href="/tools/email-analyser/" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">Email Analyser</a>
+                <a href="tools/email-analyser/" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">Email Analyser</a>
                 for full header analysis
             </p>
         </div>
@@ -178,7 +178,7 @@
 
         <!-- IP Intel — LIVE -->
         <a
-            href="/tools/ip-intel/"
+            href="tools/ip-intel/"
             class="group relative bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl p-6 hover:border-indigo-500/50 hover:bg-[#1e2133] transition-all duration-200 hover:shadow-xl hover:shadow-indigo-500/5"
         >
             <!-- Live badge -->
@@ -218,7 +218,7 @@
 
         <!-- Email Analyser — LIVE -->
         <a
-            href="/tools/email-analyser/"
+            href="tools/email-analyser/"
             class="group relative bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl p-6 hover:border-indigo-500/50 hover:bg-[#1e2133] transition-all duration-200 hover:shadow-xl hover:shadow-indigo-500/5"
         >
             <div class="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -253,7 +253,7 @@
 
         <!-- DNS Health — LIVE -->
         <a
-            href="/tools/dns-health/"
+            href="tools/dns-health/"
             class="group relative bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl p-6 hover:border-indigo-500/50 hover:bg-[#1e2133] transition-all duration-200 hover:shadow-xl hover:shadow-indigo-500/5"
         >
             <div class="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -328,7 +328,7 @@ function atlasApp() {
         lookupIP() {
             const ip = this.ipQuery.trim();
             if (!ip) return;
-            window.location.href = `/tools/ip-intel/?ip=${encodeURIComponent(ip)}`;
+            window.location.href = `tools/ip-intel/?ip=${encodeURIComponent(ip)}`;
         },
     };
 }

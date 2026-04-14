@@ -79,8 +79,8 @@ let countryDb = null;
 
 async function loadDatabases() {
     const [asnBuf, countryBuf] = await Promise.all([
-        fetch('/data/GeoLite2-ASN.mmdb').then(r => r.arrayBuffer()),
-        fetch('/data/GeoLite2-Country.mmdb').then(r => r.arrayBuffer()),
+        fetch('../../data/GeoLite2-ASN.mmdb').then(r => r.arrayBuffer()),
+        fetch('../../data/GeoLite2-Country.mmdb').then(r => r.arrayBuffer()),
     ]);
     asnDb     = new MMDBReader(new Uint8Array(asnBuf));
     countryDb = new MMDBReader(new Uint8Array(countryBuf));
