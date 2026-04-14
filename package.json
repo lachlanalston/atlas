@@ -1,0 +1,25 @@
+{
+  "name": "atlas",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "build:css": "npx tailwindcss -i ./css/input.css -o ./css/atlas.css --minify",
+    "watch:css": "npx tailwindcss -i ./css/input.css -o ./css/atlas.css --watch",
+    "serve": "npx serve ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.9",
+    "tailwindcss": "^3.4.19"
+  },
+  "dependencies": {
+    "buffer": "^6.0.3"
+  }
+}

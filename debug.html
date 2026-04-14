@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html><body>
+<pre id="out">Running...</pre>
+<script src="/lib/mmdb-reader.js"></script>
+<script>
+const out = document.getElementById('out');
+function log(msg) { out.textContent += '\n' + msg; }
+
+log('MMDBReader type: ' + typeof MMDBReader);
+
+fetch('/data/GeoLite2-ASN.mmdb')
+    .then(r => {
+        log('fetch status: ' + r.status);
+        return r.arrayBuffer();
+    })
+    .then(buf => {
+        log('buffer byteLength: ' + buf.byteLength);
+        try {
+            const db = new MMDBReader(new Uint8Array(buf));
+            log('Reader constructed OK');
+            log('nodeCount: ' + db._nodeCount);
+            log('recordSize: ' + db._recordSize);
+            log('ipVersion: ' + db._ipVersion);
+
+            const r1 = db.get('8.8.8.8');
+            log('8.8.8.8: ' + JSON.stringify(r1));
+
+            const r2 = db.get('1.1.1.1');
+            log('1.1.1.1: ' + JSON.stringify(r2));
+
+            const r3 = db.get('144.6.204.133');
+            log('144.6.204.133: ' + JSON.stringify(r3));
+        } catch(e) {
+            log('ERROR: ' + e.message);
+            log(e.stack);
+        }
+    })
+    .catch(e => log('fetch error: ' + e.message));
+</script>
+</body></html>

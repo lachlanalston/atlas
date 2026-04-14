@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlas — Helpdesk Intelligence Platform</title>
+    <link rel="stylesheet" href="/css/atlas.css">
+    <script defer src="/lib/alpine.min.js"></script>
+</head>
+
+<body
+    class="bg-[#0f1117] text-white min-h-screen antialiased"
+    x-data="atlasApp()"
+    x-init="init()"
+>
+
+<!-- ── NAVBAR ─────────────────────────────────────────────── -->
+<header
+    class="sticky top-0 z-50 border-b transition-all duration-300"
+    :class="scrolled
+        ? 'border-[#2a2d3a] bg-[#0f1117]/90 backdrop-blur-md shadow-xl shadow-black/20'
+        : 'border-transparent bg-transparent'"
+>
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+
+        <!-- Logo -->
+        <a href="/" class="flex items-center gap-3 group">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:shadow-indigo-500/50 transition-shadow">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+                </svg>
+            </div>
+            <span class="text-lg font-semibold tracking-tight text-white">Atlas</span>
+        </a>
+
+        <!-- Nav Links -->
+        <nav class="hidden md:flex items-center gap-1">
+            <a href="#tools" class="px-4 py-2 text-sm font-medium text-white bg-indigo-500 hover:bg-indigo-600 rounded-lg transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40">
+                View Tools
+            </a>
+        </nav>
+
+        <!-- Mobile menu button -->
+        <button class="md:hidden p-2 text-gray-400 hover:text-white" @click="mobileMenu = !mobileMenu">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+
+    </div>
+
+    <!-- Mobile Menu -->
+    <div x-show="mobileMenu" x-transition class="md:hidden border-t border-[#2a2d3a] bg-[#0f1117] px-6 py-4">
+        <a href="#tools" class="block py-2 text-sm font-medium text-indigo-400 hover:text-indigo-300" @click="mobileMenu = false">View Tools →</a>
+    </div>
+</header>
+
+
+<!-- ── HERO ───────────────────────────────────────────────── -->
+<section class="relative overflow-hidden">
+
+    <!-- Background grid -->
+    <div class="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.03)_1px,transparent_1px)] bg-[size:32px_32px]"></div>
+
+    <!-- Radial glow -->
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="relative max-w-6xl mx-auto px-6 pt-24 pb-20 text-center">
+
+        <!-- Badge -->
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-xs font-medium mb-8">
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+            Built for helpdesk technicians · Client data stays in your browser
+        </div>
+
+        <!-- Heading -->
+        <h1 class="text-5xl md:text-6xl font-bold tracking-tight text-white mb-6 leading-tight">
+            Investigate threats.<br>
+            <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
+                Document faster.
+            </span>
+        </h1>
+
+        <!-- Subheading -->
+        <p class="text-lg text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed">
+            Helpdesk tools built for technicians. No accounts, no data retention.
+            Investigate IPs and email headers without sending client data to third-party services.
+        </p>
+
+        <!-- Quick IP lookup -->
+        <div class="max-w-lg mx-auto">
+            <form @submit.prevent="lookupIP()" class="flex gap-2">
+                <div class="flex-1 relative">
+                    <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                    <input
+                        type="text"
+                        x-model="ipQuery"
+                        placeholder="Enter an IP address..."
+                        class="w-full pl-11 pr-4 py-3.5 bg-[#1a1d27] border border-[#2a2d3a] rounded-xl text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                    >
+                </div>
+                <button
+                    type="submit"
+                    class="px-6 py-3.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 whitespace-nowrap"
+                >
+                    Investigate →
+                </button>
+            </form>
+            <p class="mt-3 text-xs text-gray-600">
+                Analysing a suspicious email? Use
+                <a href="/tools/email-analyser/" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">Email Analyser</a>
+                for full header analysis
+            </p>
+        </div>
+
+    </div>
+</section>
+
+
+<!-- ── FEATURES STRIP ─────────────────────────────────────── -->
+<section class="border-y border-[#2a2d3a] bg-[#1a1d27]/50">
+    <div class="max-w-6xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-3 gap-8">
+
+        <div class="flex items-start gap-4">
+            <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-sm font-semibold text-white mb-1">Private by design</h3>
+                <p class="text-sm text-gray-500 leading-relaxed">IP addresses and email headers are processed locally. DNS record checks send domain names only — no client data leaves your browser.</p>
+            </div>
+        </div>
+
+        <div class="flex items-start gap-4">
+            <div class="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-sm font-semibold text-white mb-1">Instant results</h3>
+                <p class="text-sm text-gray-500 leading-relaxed">MaxMind GeoLite2 databases load once and cache locally. Every lookup resolves in milliseconds.</p>
+            </div>
+        </div>
+
+        <div class="flex items-start gap-4">
+            <div class="w-9 h-9 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-sm font-semibold text-white mb-1">Ticket-ready output</h3>
+                <p class="text-sm text-gray-500 leading-relaxed">Every tool generates a formatted ticket note. Copy and paste directly into your PSA.</p>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+
+<!-- ── TOOLS ──────────────────────────────────────────────── -->
+<section id="tools" class="max-w-6xl mx-auto px-6 py-20">
+
+    <div class="mb-12">
+        <h2 class="text-2xl font-bold text-white mb-2">Tools</h2>
+        <p class="text-gray-500 text-sm">Everything you need for IP-based threat investigation and helpdesk diagnostics.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+        <!-- IP Intel — LIVE -->
+        <a
+            href="/tools/ip-intel/"
+            class="group relative bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl p-6 hover:border-indigo-500/50 hover:bg-[#1e2133] transition-all duration-200 hover:shadow-xl hover:shadow-indigo-500/5"
+        >
+            <!-- Live badge -->
+            <div class="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="text-xs font-medium text-emerald-400">Live</span>
+            </div>
+
+            <!-- Icon -->
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4 group-hover:bg-indigo-500/20 transition-colors">
+                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+                </svg>
+            </div>
+
+            <h3 class="text-base font-semibold text-white mb-2">IP Intel</h3>
+            <p class="text-sm text-gray-500 leading-relaxed mb-4">
+                Investigate any IP address — country, ASN, organisation, risk flags. Fully offline, no data leaves your browser.
+            </p>
+
+            <!-- Tags -->
+            <div class="flex flex-wrap gap-2">
+                <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">IP Lookup</span>
+                <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">IPv4 &amp; IPv6</span>
+                <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">Offline</span>
+            </div>
+
+            <!-- Arrow -->
+            <div class="mt-4 flex items-center gap-1 text-xs font-medium text-indigo-400 group-hover:gap-2 transition-all">
+                Launch tool
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        </a>
+
+        <!-- Email Analyser — LIVE -->
+        <a
+            href="/tools/email-analyser/"
+            class="group relative bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl p-6 hover:border-indigo-500/50 hover:bg-[#1e2133] transition-all duration-200 hover:shadow-xl hover:shadow-indigo-500/5"
+        >
+            <div class="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="text-xs font-medium text-emerald-400">Live</span>
+            </div>
+
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4 group-hover:bg-indigo-500/20 transition-colors">
+                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+            </div>
+
+            <h3 class="text-base font-semibold text-white mb-2">Email Analyser</h3>
+            <p class="text-sm text-gray-500 leading-relaxed mb-4">
+                Paste raw email headers for SPF, DKIM, DMARC analysis, phishing signals, routing hops, and originating IP investigation.
+            </p>
+
+            <div class="flex flex-wrap gap-2">
+                <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">Header Analysis</span>
+                <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">Phishing Score</span>
+                <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">DNS Verified</span>
+            </div>
+
+            <div class="mt-4 flex items-center gap-1 text-xs font-medium text-indigo-400 group-hover:gap-2 transition-all">
+                Launch tool
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        </a>
+
+        <!-- DNS Health — LIVE -->
+        <a
+            href="/tools/dns-health/"
+            class="group relative bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl p-6 hover:border-indigo-500/50 hover:bg-[#1e2133] transition-all duration-200 hover:shadow-xl hover:shadow-indigo-500/5"
+        >
+            <div class="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="text-xs font-medium text-emerald-400">Live</span>
+            </div>
+
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4 group-hover:bg-indigo-500/20 transition-colors">
+                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+
+            <h3 class="text-base font-semibold text-white mb-2">DNS Health</h3>
+            <p class="text-sm text-gray-500 leading-relaxed mb-4">
+                Full mail DNS audit for any domain — SPF, DMARC, DKIM, MX, reverse DNS, and blacklist checks in one view.
+            </p>
+
+            <div class="flex flex-wrap gap-2">
+                <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">SPF / DMARC</span>
+                <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">Blacklists</span>
+                <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">DNS Verified</span>
+            </div>
+
+            <div class="mt-4 flex items-center gap-1 text-xs font-medium text-indigo-400 group-hover:gap-2 transition-all">
+                Launch tool
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        </a>
+
+    </div>
+</section>
+
+
+<!-- ── FOOTER ─────────────────────────────────────────────── -->
+<footer class="border-t border-[#2a2d3a] mt-auto">
+    <div class="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-6 h-6 rounded-md bg-indigo-500 flex items-center justify-center">
+                <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500">Atlas — Helpdesk Intelligence Platform</span>
+        </div>
+        <p class="text-xs text-gray-700">
+            IP data from
+            <a href="https://www.maxmind.com" target="_blank" rel="noopener" class="text-gray-600 hover:text-gray-400 underline underline-offset-2">MaxMind GeoLite2</a>
+            · IP lookups are fully local · Email DNS checks via Cloudflare (domain names only)
+        </p>
+    </div>
+</footer>
+
+
+<!-- ── SCRIPTS ────────────────────────────────────────────── -->
+<script>
+function atlasApp() {
+    return {
+        scrolled:   false,
+        mobileMenu: false,
+        ipQuery:    '',
+
+        init() {
+            window.addEventListener('scroll', () => {
+                this.scrolled = window.scrollY > 10;
+            });
+        },
+
+        lookupIP() {
+            const ip = this.ipQuery.trim();
+            if (!ip) return;
+            window.location.href = `/tools/ip-intel/?ip=${encodeURIComponent(ip)}`;
+        },
+    };
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build artefacts
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

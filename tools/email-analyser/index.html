@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Analyser — Atlas</title>
+    <link rel="stylesheet" href="/css/atlas.css">
+    <script src="/lib/mmdb-reader.js"></script>
+    <script src="/tools/email-analyser/app.js"></script>
+    <script defer src="/lib/alpine.min.js"></script>
+</head>
+
+<body
+    class="bg-[#0f1117] text-white min-h-screen antialiased"
+    x-data="emailAnalyser()"
+    x-init="init()"
+>
+
+<!-- ── NAVBAR ─────────────────────────────────────────────── -->
+<header class="sticky top-0 z-50 border-b border-[#2a2d3a] bg-[#0f1117]/90 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+            <a href="/" class="flex items-center gap-2.5 group">
+                <div class="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+                    </svg>
+                </div>
+                <span class="text-sm font-semibold text-gray-400 group-hover:text-white transition-colors">Atlas</span>
+            </a>
+            <span class="text-[#2a2d3a]">/</span>
+            <span class="text-sm font-semibold text-white">Email Analyser</span>
+        </div>
+
+        <!-- DB status -->
+        <div class="flex items-center gap-2 text-xs">
+            <template x-if="dbStatus === 'loading'">
+                <div class="flex items-center gap-2 text-gray-500">
+                    <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                    </svg>
+                    Loading databases…
+                </div>
+            </template>
+            <template x-if="dbStatus === 'ready'">
+                <div class="flex items-center gap-1.5 text-emerald-400">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    Databases ready
+                </div>
+            </template>
+            <template x-if="dbStatus === 'error'">
+                <div class="flex items-center gap-1.5 text-red-400">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                    Database error
+                </div>
+            </template>
+        </div>
+    </div>
+</header>
+
+
+<!-- ── MAIN ───────────────────────────────────────────────── -->
+<main class="max-w-6xl mx-auto px-6 py-10">
+
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-white mb-1">Email Analyser</h1>
+        <p class="text-sm text-gray-500">Paste raw email headers to analyse authentication, routing, and phishing signals. No data leaves your browser.</p>
+    </div>
+
+    <!-- How to get headers -->
+    <div class="mb-6 p-4 bg-[#1a1d27] border border-[#2a2d3a] rounded-xl">
+        <div class="flex items-start gap-3">
+            <svg class="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div class="text-xs text-gray-500 leading-relaxed">
+                <span class="text-gray-300 font-medium">How to get raw headers: </span>
+                <span class="text-gray-400">Outlook</span> — File → Properties → Internet headers &nbsp;·&nbsp;
+                <span class="text-gray-400">Outlook Web</span> — three dots → View → View message details &nbsp;·&nbsp;
+                <span class="text-gray-400">Gmail</span> — three dots → Show original
+            </div>
+        </div>
+    </div>
+
+    <!-- Input -->
+    <div class="mb-4 flex items-center justify-between">
+        <label class="text-sm font-medium text-gray-400">Raw Email Headers</label>
+        <button
+            x-show="emailInput"
+            @click="clear()"
+            class="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+        >
+            Clear
+        </button>
+    </div>
+
+    <textarea
+        x-model="emailInput"
+        placeholder="Paste raw email headers here…"
+        rows="10"
+        class="w-full px-4 py-3.5 bg-[#1a1d27] border border-[#2a2d3a] rounded-xl text-gray-300 placeholder-gray-700 text-xs font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none mb-4 leading-relaxed"
+    ></textarea>
+
+    <button
+        @click="analyse()"
+        :disabled="dbStatus !== 'ready' || !emailInput.trim()"
+        class="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 mb-10"
+    >
+        Analyse Headers
+    </button>
+
+    <!-- Validation error -->
+    <div x-show="headerError" x-transition class="mb-6 rounded-xl border border-red-500/30 bg-red-500/5 overflow-hidden">
+        <div class="flex items-start gap-3 px-5 py-4">
+            <div class="flex-shrink-0 w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center mt-0.5">
+                <svg class="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <div class="text-sm font-medium text-red-400 mb-1" x-text="headerError?.message"></div>
+                <div class="text-xs text-red-400/70 leading-relaxed" x-text="headerError?.detail"></div>
+                <div class="mt-3 text-xs text-gray-500 leading-relaxed">
+                    <span class="text-gray-400 font-medium">How to get raw headers: </span>
+                    <span class="text-gray-500">Outlook</span> — File → Properties → Internet headers &nbsp;·&nbsp;
+                    <span class="text-gray-500">Outlook Web</span> — ··· → View → View message details &nbsp;·&nbsp;
+                    <span class="text-gray-500">Gmail</span> — ··· → Show original
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Validation warning (partial headers — analysis still runs) -->
+    <div x-show="headerWarning && !headerError" x-transition class="mb-6 rounded-xl border border-yellow-500/30 bg-yellow-500/5 overflow-hidden">
+        <div class="flex items-start gap-3 px-5 py-4">
+            <div class="flex-shrink-0 w-5 h-5 rounded-full bg-yellow-500/20 flex items-center justify-center mt-0.5">
+                <svg class="w-3 h-3 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <div class="text-sm font-medium text-yellow-400 mb-1" x-text="headerWarning?.message"></div>
+                <div class="text-xs text-yellow-400/70 leading-relaxed" x-text="headerWarning?.detail"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div x-show="result" x-transition class="space-y-4">
+
+        <!-- Verdict banner -->
+        <div
+            class="flex items-center gap-4 p-5 rounded-2xl border"
+            :class="result?.verdict === 'PHISHING'   ? 'bg-red-500/10 border-red-500/30'     :
+                    result?.verdict === 'SUSPICIOUS' ? 'bg-orange-500/10 border-orange-500/30' :
+                    'bg-emerald-500/10 border-emerald-500/30'"
+        >
+            <div
+                class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
+                :class="result?.verdict === 'PHISHING'   ? 'bg-red-500/20'     :
+                        result?.verdict === 'SUSPICIOUS' ? 'bg-orange-500/20'   :
+                        'bg-emerald-500/20'"
+                x-text="result?.verdict === 'PHISHING' ? '⚠' : result?.verdict === 'SUSPICIOUS' ? '⚡' : '✓'"
+            ></div>
+            <div class="flex-1">
+                <div
+                    class="text-base font-bold mb-0.5"
+                    :class="result?.verdict === 'PHISHING'   ? 'text-red-400'    :
+                            result?.verdict === 'SUSPICIOUS' ? 'text-orange-400'  :
+                            'text-emerald-400'"
+                    x-text="result?.verdictLabel"
+                ></div>
+                <div class="text-sm text-gray-400" x-text="result?.verdictDetail"></div>
+            </div>
+            <div class="text-right flex-shrink-0">
+                <div
+                    class="text-2xl font-bold"
+                    :class="result?.verdict === 'PHISHING'   ? 'text-red-400'    :
+                            result?.verdict === 'SUSPICIOUS' ? 'text-orange-400'  :
+                            'text-emerald-400'"
+                    x-text="result?.score + '/100'"
+                ></div>
+                <div class="text-xs text-gray-600">Phishing score</div>
+            </div>
+        </div>
+
+        <!-- Authentication -->
+        <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-[#2a2d3a]">
+                <span class="text-sm font-medium text-white">Authentication</span>
+                <span class="text-xs text-gray-600">Server-reported results</span>
+            </div>
+
+            <!-- Summary badges -->
+            <div class="grid grid-cols-3 divide-x divide-[#2a2d3a] border-b border-[#2a2d3a]">
+                <template x-for="auth in result?.auth" :key="auth.label">
+                    <div class="p-5 text-center">
+                        <div
+                            class="text-xs font-bold uppercase tracking-wider mb-2"
+                            :class="auth.pass                             ? 'text-emerald-400' :
+                                    auth.explanation.severity === 'fail'  ? 'text-red-400'     :
+                                    auth.explanation.severity === 'warn'  ? 'text-orange-400'  :
+                                    'text-gray-500'"
+                            x-text="auth.label"
+                        ></div>
+                        <div
+                            class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border"
+                            :class="auth.pass                             ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+                                    auth.explanation.severity === 'fail'  ? 'bg-red-500/10 border-red-500/20 text-red-400'            :
+                                    auth.explanation.severity === 'warn'  ? 'bg-orange-500/10 border-orange-500/20 text-orange-400'    :
+                                    'bg-gray-500/10 border-gray-500/20 text-gray-500'"
+                            x-text="!auth.found ? 'not found' : auth.result"
+                        ></div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Per-check explanations -->
+            <div class="divide-y divide-[#2a2d3a]">
+                <template x-for="auth in result?.auth" :key="'exp-' + auth.label">
+                    <div class="px-6 py-4">
+                        <!-- Check name + short verdict -->
+                        <div class="flex items-start gap-3 mb-2">
+                            <span
+                                class="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
+                                :class="auth.pass                             ? 'bg-emerald-500/20 text-emerald-400' :
+                                        auth.explanation.severity === 'fail'  ? 'bg-red-500/20 text-red-400'         :
+                                        auth.explanation.severity === 'warn'  ? 'bg-orange-500/20 text-orange-400'   :
+                                        'bg-gray-500/20 text-gray-500'"
+                                x-text="auth.pass ? '✓' : auth.explanation.severity === 'fail' ? '✗' : auth.explanation.severity === 'warn' ? '!' : '–'"
+                            ></span>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-baseline gap-2 flex-wrap">
+                                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400" x-text="auth.label"></span>
+                                    <span
+                                        class="text-sm font-medium"
+                                        :class="auth.pass                             ? 'text-emerald-400' :
+                                                auth.explanation.severity === 'fail'  ? 'text-red-400'     :
+                                                auth.explanation.severity === 'warn'  ? 'text-orange-400'  :
+                                                'text-gray-400'"
+                                        x-text="auth.explanation.short"
+                                    ></span>
+                                </div>
+                                <!-- What the check is -->
+                                <p class="text-xs text-gray-600 mt-1 leading-relaxed" x-text="auth.explanation.what"></p>
+                                <!-- What this result means -->
+                                <p
+                                    class="text-xs mt-2 leading-relaxed"
+                                    :class="auth.pass                             ? 'text-emerald-400/80' :
+                                            auth.explanation.severity === 'fail'  ? 'text-red-400/80'     :
+                                            auth.explanation.severity === 'warn'  ? 'text-orange-400/80'  :
+                                            'text-gray-500'"
+                                    x-text="auth.explanation.detail"
+                                ></p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- DNS Records -->
+        <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-[#2a2d3a]">
+                <span class="text-sm font-medium text-white">DNS Records</span>
+                <template x-if="dnsLoading">
+                    <div class="flex items-center gap-2 text-xs text-gray-500">
+                        <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                        </svg>
+                        Checking DNS…
+                    </div>
+                </template>
+                <template x-if="!dnsLoading && result?.dnsRecords">
+                    <span class="text-xs text-gray-600" x-text="result.dnsRecords.domain"></span>
+                </template>
+            </div>
+
+            <!-- No DNS yet -->
+            <template x-if="!dnsLoading && !result?.dnsRecords">
+                <div class="px-6 py-5 text-sm text-gray-600">No From domain found — DNS check skipped.</div>
+            </template>
+
+            <!-- DNS results -->
+            <template x-if="result?.dnsRecords">
+                <div class="divide-y divide-[#2a2d3a]">
+
+                    <!-- SPF -->
+                    <div class="px-6 py-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-gray-500">SPF</span>
+                            <span
+                                class="text-xs font-medium px-2 py-0.5 rounded-md border"
+                                :class="result.dnsRecords.spfRecord
+                                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                    : 'bg-red-500/10 border-red-500/20 text-red-400'"
+                                x-text="result.dnsRecords.spfRecord ? 'Record found' : 'No record — domain is spoofable'"
+                            ></span>
+                        </div>
+                        <code
+                            x-show="result.dnsRecords.spfRecord"
+                            class="text-xs font-mono text-gray-400 break-all"
+                            x-text="result.dnsRecords.spfRecord"
+                        ></code>
+                    </div>
+
+                    <!-- DMARC -->
+                    <div class="px-6 py-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-gray-500">DMARC</span>
+                            <span
+                                class="text-xs font-medium px-2 py-0.5 rounded-md border"
+                                :class="!result.dnsRecords.dmarcRecord  ? 'bg-red-500/10 border-red-500/20 text-red-400'         :
+                                         result.dnsRecords.dmarcPolicy === 'reject'      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+                                         result.dnsRecords.dmarcPolicy === 'quarantine'  ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'    :
+                                         'bg-orange-500/10 border-orange-500/20 text-orange-400'"
+                                x-text="!result.dnsRecords.dmarcRecord ? 'No record — no enforcement' :
+                                         'p=' + result.dnsRecords.dmarcPolicy + (result.dnsRecords.dmarcPct !== '100' ? '  pct=' + result.dnsRecords.dmarcPct + '%' : '')"
+                            ></span>
+                        </div>
+                        <div x-show="result.dnsRecords.dmarcPolicy === 'none'" class="text-xs text-orange-400 mb-1">
+                            Monitoring mode — failed emails are not blocked
+                        </div>
+                        <div x-show="result.dnsRecords.dmarcRua" class="text-xs text-gray-600" x-text="'Reports → ' + result.dnsRecords.dmarcRua"></div>
+                    </div>
+
+                    <!-- DKIM -->
+                    <div x-show="result.dnsRecords.dkim" class="px-6 py-4">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-bold uppercase tracking-wider text-gray-500">DKIM Key</span>
+                            <span
+                                class="text-xs font-medium px-2 py-0.5 rounded-md border"
+                                :class="result.dnsRecords.dkim?.revoked  ? 'bg-red-500/10 border-red-500/20 text-red-400'         :
+                                         result.dnsRecords.dkim?.exists  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+                                         'bg-red-500/10 border-red-500/20 text-red-400'"
+                                x-text="result.dnsRecords.dkim?.revoked ? 'Revoked' : result.dnsRecords.dkim?.exists ? 'Found' : 'Not found'"
+                            ></span>
+                        </div>
+                        <code class="text-xs font-mono text-gray-600" x-text="result.dnsRecords.dkim?.lookupName"></code>
+                    </div>
+
+                </div>
+            </template>
+        </div>
+
+        <!-- Sender + Origin IP -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl p-6 space-y-4">
+                <div class="text-sm font-medium text-white mb-2">Email Details</div>
+
+                <!-- From / Reply-To -->
+                <template x-for="field in result?.senderFields" :key="field.label">
+                    <div>
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1" x-text="field.label"></div>
+                        <div
+                            class="text-sm font-mono break-all"
+                            :class="field.flag ? 'text-red-400' : 'text-gray-300'"
+                            x-text="field.value || '—'"
+                        ></div>
+                        <div x-show="field.flag" class="text-xs text-red-500 mt-1" x-text="field.flagReason"></div>
+                    </div>
+                </template>
+
+                <!-- Timeline -->
+                <div x-show="result?.timeline" class="pt-3 mt-1 border-t border-[#2a2d3a] space-y-3">
+                    <div>
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Sent</div>
+                        <div class="text-sm text-gray-300" x-text="result?.timeline?.sentDisplay || '—'"></div>
+                    </div>
+                    <div x-show="result?.timeline?.receivedDisplay">
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Delivered</div>
+                        <div class="text-sm text-gray-300" x-text="result?.timeline?.receivedDisplay"></div>
+                    </div>
+                    <div x-show="result?.timeline?.deltaSecs !== null">
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Transit Time</div>
+                        <div
+                            class="flex items-center gap-2"
+                        >
+                            <span
+                                class="text-sm font-mono font-medium"
+                                :class="result?.timeline?.flag?.severity === 'high'   ? 'text-red-400'    :
+                                        result?.timeline?.flag?.severity === 'medium' ? 'text-orange-400'  :
+                                        result?.timeline?.flag?.severity === 'low'    ? 'text-yellow-400'  :
+                                        result?.timeline?.deltaSecs < 0              ? 'text-red-400'     :
+                                        'text-emerald-400'"
+                                x-text="result?.timeline?.deltaSecs < 0
+                                    ? '−' + $data.formatDelta(Math.abs(result.timeline.deltaSecs)) + ' (future-dated)'
+                                    : '+' + $data.formatDelta(result.timeline.deltaSecs)"
+                            ></span>
+                        </div>
+                        <p
+                            x-show="result?.timeline?.flag"
+                            class="text-xs mt-1 leading-relaxed"
+                            :class="result?.timeline?.flag?.severity === 'high'   ? 'text-red-400/80'   :
+                                    result?.timeline?.flag?.severity === 'medium' ? 'text-orange-400/70' :
+                                    'text-yellow-400/70'"
+                            x-text="result?.timeline?.flag?.detail"
+                        ></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl p-6">
+                <div class="text-sm font-medium text-white mb-4">Originating IP</div>
+                <template x-if="result?.originIP">
+                    <div class="space-y-3">
+                        <div>
+                            <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">IP Address</div>
+                            <code class="text-sm font-mono text-white" x-text="result.originIP.ip"></code>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Country</div>
+                            <div class="text-sm text-gray-300" x-text="result.originIP.country || '—'"></div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Organisation</div>
+                            <div class="text-sm text-gray-300" x-text="result.originIP.org || '—'"></div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">ASN</div>
+                            <div class="text-sm font-mono text-gray-500" x-text="result.originIP.asn ? 'AS' + result.originIP.asn : '—'"></div>
+                        </div>
+                        <!-- IP type context -->
+                        <div x-show="result.originIP.context" class="pt-2 mt-1 border-t border-[#2a2d3a]">
+                            <p
+                                class="text-xs leading-relaxed"
+                                :class="result.originIP.type === 'hosting' ? 'text-orange-400/70' :
+                                        result.originIP.type === 'cloud'   ? 'text-blue-400/70'   :
+                                        'text-gray-600'"
+                                x-text="result.originIP.context"
+                            ></p>
+                        </div>
+                    </div>
+                </template>
+                <template x-if="!result?.originIP">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-2">Could not extract originating IP</p>
+                        <p class="text-xs text-gray-700 leading-relaxed">The originating IP is extracted from the oldest <code>Received:</code> header. If no public IP was found, the email may have been sent entirely within a private network, or the headers were truncated.</p>
+                    </div>
+                </template>
+            </div>
+
+        </div>
+
+        <!-- Hop timeline -->
+        <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-[#2a2d3a]">
+                <span class="text-sm font-medium text-white">Routing Hops</span>
+                <span
+                    class="text-xs"
+                    :class="result?.hopContext?.warn ? 'text-orange-400' : 'text-gray-600'"
+                    x-text="result?.hopContext?.text || ''"
+                ></span>
+            </div>
+            <div class="divide-y divide-[#2a2d3a]">
+                <template x-for="(hop, i) in result?.hops" :key="i">
+                    <div class="flex items-start gap-4 px-6 py-4">
+                        <div class="w-6 h-6 rounded-full bg-[#0f1117] border border-[#2a2d3a] flex items-center justify-center flex-shrink-0 text-xs text-gray-600 font-mono" x-text="i + 1"></div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm font-mono text-gray-300 truncate" x-text="hop.from || '(unknown)'"></div>
+                            <div class="flex items-center gap-3 mt-0.5">
+                                <span x-show="hop.ip" class="text-xs font-mono text-indigo-400" x-text="hop.ip"></span>
+                                <span class="text-xs text-gray-600" x-text="hop.timestamp"></span>
+                            </div>
+                        </div>
+                        <div x-show="hop.delay !== null" class="text-right flex-shrink-0">
+                            <div
+                                class="text-xs font-mono"
+                                :class="hop.delay > 30 ? 'text-orange-400' : 'text-gray-600'"
+                                x-text="hop.delay !== null ? '+' + hop.delay + 's' : ''"
+                            ></div>
+                            <div x-show="hop.delay > 30" class="text-xs text-orange-400/70 mt-0.5">unusual delay</div>
+                        </div>
+                    </div>
+                </template>
+                <template x-if="!result?.hops?.length">
+                    <div class="px-6 py-5">
+                        <p class="text-sm text-gray-600 mb-1">No routing hops found</p>
+                        <p class="text-xs text-gray-700 leading-relaxed">Routing hops come from <code>Received:</code> headers added by each mail server in the delivery chain. If none appear, the headers may be incomplete or the email was sent directly without relay.</p>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Phishing signals -->
+        <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-[#2a2d3a]">
+                <span class="text-sm font-medium text-white">Phishing Signals</span>
+                <span
+                    class="text-xs font-medium px-2 py-0.5 rounded-md border"
+                    :class="result?.signals?.length ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'"
+                    x-text="result?.signals?.length ? result.signals.length + ' detected' : 'None detected'"
+                ></span>
+            </div>
+            <div x-show="result?.signals?.length" class="divide-y divide-[#2a2d3a]">
+                <template x-for="signal in result?.signals" :key="signal.label">
+                    <div class="flex items-start gap-4 px-6 py-4">
+                        <span
+                            class="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs mt-0.5 font-bold"
+                            :class="signal.severity === 'high'   ? 'bg-red-500/20 text-red-400'       :
+                                    signal.severity === 'medium' ? 'bg-orange-500/20 text-orange-400' :
+                                    'bg-yellow-500/20 text-yellow-400'"
+                            x-text="signal.severity === 'high' ? '!' : '~'"
+                        ></span>
+                        <div class="flex-1">
+                            <div
+                                class="text-sm font-medium"
+                                :class="signal.severity === 'high'   ? 'text-red-300'    :
+                                        signal.severity === 'medium' ? 'text-orange-300'  :
+                                        'text-yellow-300'"
+                                x-text="signal.label"
+                            ></div>
+                            <div class="text-xs text-gray-400 mt-1 leading-relaxed" x-text="signal.detail"></div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <div x-show="!result?.signals?.length" class="px-6 py-4">
+                <p class="text-xs text-gray-600 leading-relaxed">No phishing signals were detected in these headers. This does not guarantee the email is safe — always verify unexpected requests through a known-good contact method, especially if they involve payments, credentials, or urgent actions.</p>
+            </div>
+        </div>
+
+        <!-- Ticket note -->
+        <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-[#2a2d3a]">
+                <span class="text-sm font-medium text-white">Ticket Note</span>
+                <button
+                    @click="copyNote()"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                    :class="copied ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-[#0f1117] text-gray-400 hover:text-white border border-[#2a2d3a]'"
+                >
+                    <svg x-show="!copied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    <svg x-show="copied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                </button>
+            </div>
+            <pre class="p-6 text-xs text-gray-400 font-mono leading-relaxed whitespace-pre-wrap break-all" x-text="ticketNote"></pre>
+        </div>
+
+    </div>
+
+    <!-- Empty state -->
+    <div x-show="!result" class="flex flex-col items-center justify-center py-16 text-center">
+        <div class="w-14 h-14 rounded-2xl bg-[#1a1d27] border border-[#2a2d3a] flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+        </div>
+        <p class="text-sm text-gray-500 mb-1">Paste email headers above and click Analyse</p>
+        <p class="text-xs text-gray-700">Headers contain routing, authentication and origin data</p>
+    </div>
+
+</main>
+
+</body>
+</html>

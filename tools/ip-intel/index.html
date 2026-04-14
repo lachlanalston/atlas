@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Intel — Atlas</title>
+    <link rel="stylesheet" href="/css/atlas.css">
+    <script src="/lib/mmdb-reader.js"></script>
+    <script src="/tools/ip-intel/app.js"></script>
+    <script defer src="/lib/alpine.min.js"></script>
+</head>
+
+<body
+    class="bg-[#0f1117] text-white min-h-screen antialiased"
+    x-data="ipIntel()"
+    x-init="init()"
+>
+
+<!-- ── NAVBAR ─────────────────────────────────────────────── -->
+<header class="sticky top-0 z-50 border-b border-[#2a2d3a] bg-[#0f1117]/90 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+            <a href="/" class="flex items-center gap-2.5 group">
+                <div class="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+                    </svg>
+                </div>
+                <span class="text-sm font-semibold text-gray-400 group-hover:text-white transition-colors">Atlas</span>
+            </a>
+            <span class="text-[#2a2d3a]">/</span>
+            <span class="text-sm font-semibold text-white">IP Intel</span>
+        </div>
+
+        <!-- DB status -->
+        <div class="flex items-center gap-2 text-xs">
+            <template x-if="dbStatus === 'loading'">
+                <div class="flex items-center gap-2 text-gray-500">
+                    <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                    </svg>
+                    Loading databases…
+                </div>
+            </template>
+            <template x-if="dbStatus === 'ready'">
+                <div class="flex items-center gap-1.5 text-emerald-400">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    Databases ready
+                </div>
+            </template>
+            <template x-if="dbStatus === 'error'">
+                <div class="flex items-center gap-1.5 text-red-400">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                    Database error
+                </div>
+            </template>
+        </div>
+    </div>
+</header>
+
+
+<!-- ── MAIN ───────────────────────────────────────────────── -->
+<main class="max-w-6xl mx-auto px-6 py-10">
+
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-white mb-1">IP Intel</h1>
+        <p class="text-sm text-gray-500">Investigate any IP address — country, organisation, ASN and risk flags. All lookups run locally, no data leaves your browser.</p>
+    </div>
+
+    <!-- Input -->
+    <form @submit.prevent="lookupIP()" class="flex gap-3 mb-8">
+        <div class="flex-1 relative">
+            <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </div>
+            <input
+                type="text"
+                x-model="ipInput"
+                x-ref="ipField"
+                placeholder="Enter IP address  e.g. 41.206.1.1"
+                class="w-full pl-11 pr-4 py-3.5 bg-[#1a1d27] border border-[#2a2d3a] rounded-xl text-white placeholder-gray-600 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+            >
+        </div>
+        <button
+            type="submit"
+            :disabled="dbStatus !== 'ready' || !ipInput.trim()"
+            class="px-6 py-3.5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40"
+        >
+            Investigate
+        </button>
+    </form>
+
+    <!-- Input error -->
+    <div x-show="inputError" x-transition class="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span x-text="inputError"></span>
+    </div>
+
+    <!-- Result -->
+    <div x-show="ipResult" x-transition class="space-y-4">
+
+        <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+
+            <!-- Card header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-[#2a2d3a]">
+                <div class="flex items-center gap-3">
+                    <code class="text-base font-mono font-semibold text-white" x-text="ipResult?.ip"></code>
+                    <span
+                        class="px-2 py-0.5 rounded-md text-xs font-medium border"
+                        :class="ipResult?.type === 'cloud'   ? 'bg-blue-500/10 border-blue-500/20 text-blue-400'       :
+                                ipResult?.type === 'hosting' ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' :
+                                'bg-gray-500/10 border-gray-500/20 text-gray-400'"
+                        x-text="ipResult?.typeLabel"
+                    ></span>
+                </div>
+                <div class="text-xs text-gray-600 font-mono" x-text="ipResult?.timestamp"></div>
+            </div>
+
+            <!-- Type context -->
+            <div
+                class="px-6 py-3 border-b border-[#2a2d3a] text-xs leading-relaxed"
+                :class="ipResult?.context?.severity === 'high'    ? 'bg-red-500/5 text-red-400/80'       :
+                        ipResult?.context?.severity === 'medium'  ? 'bg-orange-500/5 text-orange-300/70' :
+                        'text-gray-600'"
+                x-text="ipResult?.context?.text"
+            ></div>
+
+            <!-- Result grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-0 divide-y md:divide-y-0 md:divide-x divide-[#2a2d3a]">
+
+                <div class="p-6 space-y-4">
+                    <div>
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Country</div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-medium text-white" x-text="ipResult?.country || '—'"></span>
+                            <span class="text-xs text-gray-500" x-text="ipResult?.continent ? '(' + ipResult.continent + ')' : ''"></span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Organisation</div>
+                        <div class="text-sm font-medium text-white" x-text="ipResult?.org || '—'"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">ASN</div>
+                        <div class="text-sm font-mono text-gray-300" x-text="ipResult?.asn ? 'AS' + ipResult.asn : '—'"></div>
+                    </div>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div>
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">IP Version</div>
+                        <div class="text-sm font-medium text-white" x-text="ipResult?.version || '—'"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Visibility</div>
+                        <div class="text-sm font-medium text-white" x-text="ipResult?.isPrivate ? 'Private / RFC1918' : 'Public'"></div>
+                    </div>
+                    <div x-show="ipResult?.registeredCountry && ipResult.registeredCountry !== ipResult.country">
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Registered Country</div>
+                        <div class="text-sm font-medium text-yellow-400" x-text="ipResult?.registeredCountry"></div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Risk flags -->
+            <div x-show="ipResult?.flags?.length" class="border-t border-[#2a2d3a]">
+                <div class="px-6 pt-4 pb-1 text-xs text-gray-600 uppercase tracking-wider">Risk Flags</div>
+                <div class="divide-y divide-[#2a2d3a]">
+                    <template x-for="flag in ipResult?.flags" :key="flag.label">
+                        <div class="flex items-start gap-3 px-6 py-4">
+                            <span class="flex-shrink-0 text-sm mt-0.5" x-text="flag.icon"></span>
+                            <div>
+                                <div
+                                    class="text-sm font-medium mb-1"
+                                    :class="flag.severity === 'high'   ? 'text-red-400'    :
+                                            flag.severity === 'medium' ? 'text-orange-400'  :
+                                            'text-yellow-400'"
+                                    x-text="flag.label"
+                                ></div>
+                                <p class="text-xs text-gray-500 leading-relaxed" x-text="flag.detail"></p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ticket note -->
+        <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-[#2a2d3a]">
+                <span class="text-sm font-medium text-white">Ticket Note</span>
+                <button
+                    @click="copyNote()"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                    :class="copied ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-[#0f1117] text-gray-400 hover:text-white border border-[#2a2d3a]'"
+                >
+                    <svg x-show="!copied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    <svg x-show="copied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                </button>
+            </div>
+            <pre class="p-6 text-xs text-gray-400 font-mono leading-relaxed whitespace-pre-wrap break-all" x-text="ticketNote"></pre>
+        </div>
+
+    </div>
+
+    <!-- Empty state -->
+    <div x-show="!ipResult" class="flex flex-col items-center justify-center py-24 text-center">
+        <div class="w-14 h-14 rounded-2xl bg-[#1a1d27] border border-[#2a2d3a] flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+        </div>
+        <p class="text-sm text-gray-500 mb-1">Enter an IP address above to investigate</p>
+        <p class="text-xs text-gray-700">Supports IPv4 and IPv6</p>
+    </div>
+
+</main>
+
+</body>
+</html>

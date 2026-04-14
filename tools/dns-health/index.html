@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNS Health — Atlas</title>
+    <link rel="stylesheet" href="/css/atlas.css">
+    <script src="/tools/dns-health/app.js"></script>
+    <script defer src="/lib/alpine.min.js"></script>
+</head>
+
+<body
+    class="bg-[#0f1117] text-white min-h-screen antialiased"
+    x-data="dnsHealth()"
+>
+
+<!-- ── NAVBAR ─────────────────────────────────────────────── -->
+<header class="sticky top-0 z-50 border-b border-[#2a2d3a] bg-[#0f1117]/90 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+            <a href="/" class="flex items-center gap-2.5 group">
+                <div class="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+                    </svg>
+                </div>
+                <span class="text-sm font-semibold text-gray-400 group-hover:text-white transition-colors">Atlas</span>
+            </a>
+            <span class="text-[#2a2d3a]">/</span>
+            <span class="text-sm font-semibold text-white">DNS Health</span>
+        </div>
+        <div class="text-xs text-gray-600">Checks via Cloudflare DoH · domain names only</div>
+    </div>
+</header>
+
+
+<!-- ── MAIN ───────────────────────────────────────────────── -->
+<main class="max-w-6xl mx-auto px-6 py-10">
+
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-white mb-1">DNS Health</h1>
+        <p class="text-sm text-gray-500">Full mail DNS audit — SPF, DMARC, DKIM, MX, reverse DNS, and blacklist checks in one view.</p>
+    </div>
+
+    <!-- Input -->
+    <form @submit.prevent="run()" class="flex gap-3 mb-8 flex-wrap">
+        <div class="flex-1 min-w-[200px] relative">
+            <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/>
+                </svg>
+            </div>
+            <input
+                type="text"
+                x-model="domainInput"
+                placeholder="Domain  e.g. example.com"
+                class="w-full pl-11 pr-4 py-3.5 bg-[#1a1d27] border border-[#2a2d3a] rounded-xl text-white placeholder-gray-600 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+            >
+        </div>
+        <div class="w-48 relative">
+            <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                </svg>
+            </div>
+            <input
+                type="text"
+                x-model="selectorInput"
+                placeholder="DKIM selector"
+                class="w-full pl-11 pr-4 py-3.5 bg-[#1a1d27] border border-[#2a2d3a] rounded-xl text-white placeholder-gray-600 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+            >
+        </div>
+        <button
+            type="submit"
+            :disabled="!domainInput.trim() || loading"
+            class="px-6 py-3.5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 flex items-center gap-2"
+        >
+            <svg x-show="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+            <span x-text="loading ? 'Checking…' : 'Run Check'"></span>
+        </button>
+    </form>
+
+    <!-- Input error -->
+    <div x-show="inputError" x-transition class="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span x-text="inputError"></span>
+    </div>
+
+    <!-- Results -->
+    <div x-show="result" x-transition class="space-y-4">
+
+        <!-- Summary bar -->
+        <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl px-6 py-4 flex items-center justify-between">
+            <div>
+                <code class="text-base font-mono font-semibold text-white" x-text="result?.domain"></code>
+                <span class="ml-3 text-xs text-gray-600" x-text="result?.timestamp"></span>
+            </div>
+            <div
+                class="px-3 py-1 rounded-lg text-sm font-medium border"
+                :class="result?.issueCount === 0
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                    : 'bg-red-500/10 border-red-500/20 text-red-400'"
+                x-text="result?.issueCount === 0 ? 'All checks passed' : result?.issueCount + ' issue(s) found'"
+            ></div>
+        </div>
+
+        <!-- Check cards grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <!-- SPF -->
+            <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+                <div class="flex items-center gap-3 px-6 py-4 border-b border-[#2a2d3a]">
+                    <span
+                        class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border"
+                        :class="severityBg(result?.spf?.assessment?.severity)"
+                        x-text="severityIcon(result?.spf?.assessment?.severity)"
+                    ></span>
+                    <span class="text-sm font-semibold text-white">SPF</span>
+                    <span class="ml-auto text-xs font-medium" :class="severityClass(result?.spf?.assessment?.severity)" x-text="result?.spf?.assessment?.label"></span>
+                </div>
+                <div class="p-6 space-y-3">
+                    <p class="text-xs text-gray-500 leading-relaxed" x-text="result?.spf?.assessment?.detail"></p>
+                    <template x-if="result?.spf?.parsed">
+                        <div class="space-y-2 pt-1">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-gray-600">Policy</span>
+                                <span class="font-mono text-gray-300" x-text="result?.spf?.parsed?.allLabel"></span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-gray-600">DNS lookups</span>
+                                <span
+                                    class="font-mono"
+                                    :class="result?.spf?.parsed?.lookupCount > 10 ? 'text-red-400' : result?.spf?.parsed?.lookupCount > 8 ? 'text-yellow-400' : 'text-gray-300'"
+                                    x-text="result?.spf?.parsed?.lookupCount + ' / 10'"
+                                ></span>
+                            </div>
+                            <div class="pt-1">
+                                <div class="text-xs text-gray-600 mb-1">Record</div>
+                                <code class="text-xs text-gray-400 font-mono break-all leading-relaxed" x-text="result?.spf?.parsed?.record"></code>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- DMARC -->
+            <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+                <div class="flex items-center gap-3 px-6 py-4 border-b border-[#2a2d3a]">
+                    <span
+                        class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border"
+                        :class="severityBg(result?.dmarc?.assessment?.severity)"
+                        x-text="severityIcon(result?.dmarc?.assessment?.severity)"
+                    ></span>
+                    <span class="text-sm font-semibold text-white">DMARC</span>
+                    <span class="ml-auto text-xs font-medium" :class="severityClass(result?.dmarc?.assessment?.severity)" x-text="result?.dmarc?.assessment?.label"></span>
+                </div>
+                <div class="p-6 space-y-3">
+                    <p class="text-xs text-gray-500 leading-relaxed" x-text="result?.dmarc?.assessment?.detail"></p>
+                    <template x-if="result?.dmarc?.parsed">
+                        <div class="space-y-2 pt-1">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-gray-600">Policy</span>
+                                <span
+                                    class="font-mono"
+                                    :class="result?.dmarc?.parsed?.policy === 'reject' ? 'text-emerald-400' : result?.dmarc?.parsed?.policy === 'quarantine' ? 'text-yellow-400' : 'text-red-400'"
+                                    x-text="'p=' + result?.dmarc?.parsed?.policy"
+                                ></span>
+                            </div>
+                            <div class="flex justify-between text-xs" x-show="result?.dmarc?.parsed?.pct < 100">
+                                <span class="text-gray-600">Enforcement %</span>
+                                <span class="font-mono text-yellow-400" x-text="result?.dmarc?.parsed?.pct + '%'"></span>
+                            </div>
+                            <div class="flex justify-between text-xs" x-show="result?.dmarc?.parsed?.rua">
+                                <span class="text-gray-600">Report address</span>
+                                <span class="font-mono text-gray-300 truncate max-w-[180px]" x-text="result?.dmarc?.parsed?.rua"></span>
+                            </div>
+                            <div class="pt-1">
+                                <div class="text-xs text-gray-600 mb-1">Record</div>
+                                <code class="text-xs text-gray-400 font-mono break-all leading-relaxed" x-text="result?.dmarc?.parsed?.record"></code>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- DKIM -->
+            <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+                <div class="flex items-center gap-3 px-6 py-4 border-b border-[#2a2d3a]">
+                    <span
+                        class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border"
+                        :class="severityBg(result?.dkim?.assessment?.severity)"
+                        x-text="severityIcon(result?.dkim?.assessment?.severity)"
+                    ></span>
+                    <span class="text-sm font-semibold text-white">DKIM</span>
+                    <span class="ml-auto text-xs font-medium" :class="severityClass(result?.dkim?.assessment?.severity)" x-text="result?.dkim?.assessment?.label"></span>
+                </div>
+                <div class="p-6 space-y-3">
+                    <p class="text-xs text-gray-500 leading-relaxed" x-text="result?.dkim?.assessment?.detail"></p>
+                    <template x-if="result?.dkim?.result?.found">
+                        <div class="space-y-2 pt-1">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-gray-600">Selector</span>
+                                <code class="font-mono text-gray-300" x-text="result?.dkim?.result?.selector"></code>
+                            </div>
+                            <div class="pt-1">
+                                <div class="text-xs text-gray-600 mb-1">Record (truncated)</div>
+                                <code class="text-xs text-gray-400 font-mono break-all leading-relaxed line-clamp-3" x-text="result?.dkim?.result?.record"></code>
+                            </div>
+                        </div>
+                    </template>
+                    <template x-if="!result?.dkim?.result?.found">
+                        <p class="text-xs text-gray-600 pt-1">Tried selectors: <code class="font-mono">google, selector1, selector2, default, k1, mail, dkim, s1, s2, email</code></p>
+                    </template>
+                </div>
+            </div>
+
+            <!-- MX -->
+            <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+                <div class="flex items-center gap-3 px-6 py-4 border-b border-[#2a2d3a]">
+                    <span
+                        class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border"
+                        :class="severityBg(result?.mx?.assessment?.severity)"
+                        x-text="severityIcon(result?.mx?.assessment?.severity)"
+                    ></span>
+                    <span class="text-sm font-semibold text-white">MX Records</span>
+                    <span class="ml-auto text-xs font-medium" :class="severityClass(result?.mx?.assessment?.severity)" x-text="result?.mx?.assessment?.label"></span>
+                </div>
+                <div class="p-6 space-y-3">
+                    <p class="text-xs text-gray-500 leading-relaxed" x-text="result?.mx?.assessment?.detail"></p>
+                    <template x-if="result?.mx?.result?.records?.length">
+                        <div class="space-y-2 pt-1">
+                            <template x-for="rec in result?.mx?.result?.records" :key="rec.host">
+                                <div class="text-xs">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-gray-600 font-mono w-6 text-right" x-text="rec.priority"></span>
+                                        <span class="text-gray-300 font-mono" x-text="rec.host"></span>
+                                    </div>
+                                    <template x-for="ip in (result?.mx?.result?.ips[rec.host] || [])" :key="ip">
+                                        <div class="flex items-center gap-2 ml-8">
+                                            <span class="text-gray-600 font-mono" x-text="ip"></span>
+                                            <span
+                                                class="text-xs"
+                                                :class="result?.mx?.result?.ptrs[ip] ? 'text-emerald-400/70' : 'text-red-400/70'"
+                                                x-text="result?.mx?.result?.ptrs[ip] ? '↩ ' + result.mx.result.ptrs[ip] : '↩ no PTR'"
+                                            ></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Blacklists -->
+        <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+            <div class="flex items-center gap-3 px-6 py-4 border-b border-[#2a2d3a]">
+                <template x-if="result?.blacklists?.some(b => b.listed)">
+                    <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border bg-red-500/10 border-red-500/20 text-red-400">!</span>
+                </template>
+                <template x-if="!result?.blacklists?.some(b => b.listed)">
+                    <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border bg-emerald-500/10 border-emerald-500/20 text-emerald-400">✓</span>
+                </template>
+                <span class="text-sm font-semibold text-white">Blacklists</span>
+                <span class="ml-auto text-xs text-gray-600" x-text="result?.blacklistIPs?.length ? result.blacklistIPs.length + ' IP(s) checked across 8 lists' : 'No MX IPs to check'"></span>
+            </div>
+
+            <!-- No MX IPs -->
+            <template x-if="!result?.blacklistIPs?.length">
+                <div class="px-6 py-4 text-xs text-gray-600">No MX server IPs found — blacklist check skipped.</div>
+            </template>
+
+            <!-- Listed -->
+            <template x-if="result?.blacklistIPs?.length && result?.blacklists?.some(b => b.listed)">
+                <div class="divide-y divide-[#2a2d3a]">
+                    <template x-for="b in result?.blacklists?.filter(b => b.listed)" :key="b.ip + b.zone">
+                        <div class="flex items-center gap-4 px-6 py-3">
+                            <span class="text-xs font-mono text-red-400" x-text="b.ip"></span>
+                            <span class="text-xs font-medium text-red-300" x-text="b.label"></span>
+                            <span class="text-xs text-gray-600 font-mono" x-text="b.zone"></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- Clean -->
+            <template x-if="result?.blacklistIPs?.length && !result?.blacklists?.some(b => b.listed)">
+                <div class="px-6 py-4 text-xs text-emerald-400/70">
+                    Not listed on any of the 8 checked blacklists.
+                </div>
+            </template>
+        </div>
+
+        <!-- BIMI -->
+        <template x-if="result?.bimi?.found">
+            <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+                <div class="flex items-center gap-3 px-6 py-4 border-b border-[#2a2d3a]">
+                    <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border bg-indigo-500/10 border-indigo-500/20 text-indigo-400">✓</span>
+                    <span class="text-sm font-semibold text-white">BIMI</span>
+                    <span class="ml-auto text-xs text-indigo-400">Brand indicator configured</span>
+                </div>
+                <div class="p-6">
+                    <code class="text-xs text-gray-400 font-mono break-all" x-text="result?.bimi?.record"></code>
+                </div>
+            </div>
+        </template>
+
+        <!-- Ticket note -->
+        <div class="bg-[#1a1d27] border border-[#2a2d3a] rounded-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-[#2a2d3a]">
+                <span class="text-sm font-medium text-white">Ticket Note</span>
+                <button
+                    @click="copyNote()"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                    :class="copied ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-[#0f1117] text-gray-400 hover:text-white border border-[#2a2d3a]'"
+                >
+                    <svg x-show="!copied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    <svg x-show="copied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                </button>
+            </div>
+            <pre class="p-6 text-xs text-gray-400 font-mono leading-relaxed whitespace-pre-wrap break-all" x-text="ticketNote"></pre>
+        </div>
+
+    </div>
+
+    <!-- Empty state -->
+    <div x-show="!result && !loading" class="flex flex-col items-center justify-center py-24 text-center">
+        <div class="w-14 h-14 rounded-2xl bg-[#1a1d27] border border-[#2a2d3a] flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+        </div>
+        <p class="text-sm text-gray-500 mb-1">Enter a domain to run a full DNS health check</p>
+        <p class="text-xs text-gray-700">SPF · DMARC · DKIM · MX · Reverse DNS · Blacklists</p>
+    </div>
+
+</main>
+
+</body>
+</html>
