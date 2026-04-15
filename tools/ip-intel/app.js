@@ -25,6 +25,22 @@ const PRIVATE_RANGES = [
     /^fd/i,
 ];
 
+const PRIVATE_RANGE_INFO = [
+    { test: /^127\./,                          range: '127.0.0.0/8',      rfc: 'RFC 5735', name: 'Loopback',                purpose: 'Used by the local machine to communicate with itself. Packets sent to this range never leave the host and are not visible on the network.' },
+    { test: /^10\./,                           range: '10.0.0.0/8',       rfc: 'RFC 1918', name: 'Class A Private Network', purpose: 'Large private block used in corporate and enterprise environments, data centres, and VPN address pools. Supports up to 16 million host addresses.' },
+    { test: /^172\.(1[6-9]|2\d|3[01])\./,     range: '172.16.0.0/12',    rfc: 'RFC 1918', name: 'Class B Private Network', purpose: 'Mid-range private block commonly used in corporate networks, cloud VPCs, and container networking (e.g. Docker bridge networks).' },
+    { test: /^192\.168\./,                     range: '192.168.0.0/16',   rfc: 'RFC 1918', name: 'Class C Private Network', purpose: 'The most common range for home and small office routers. Devices behind a NAT gateway typically receive an address in this range.' },
+    { test: /^169\.254\./,                     range: '169.254.0.0/16',   rfc: 'RFC 3927', name: 'Link-local / APIPA',      purpose: 'Automatically assigned when a device fails to obtain a DHCP lease. Seeing this in logs usually indicates a network misconfiguration or DHCP failure.' },
+    { test: /^::1$/,                           range: '::1/128',          rfc: 'RFC 4291', name: 'IPv6 Loopback',           purpose: 'The IPv6 equivalent of 127.0.0.1. Used by the local machine to communicate with itself; never forwarded by a router.' },
+    { test: /^fd/i,                            range: 'fc00::/7 (fd::)',  rfc: 'RFC 4193', name: 'IPv6 Unique Local (fd)', purpose: 'Locally assigned IPv6 unique-local addresses. The fd:: prefix means the address was generated locally rather than centrally assigned.' },
+    { test: /^fc/i,                            range: 'fc00::/7 (fc::)',  rfc: 'RFC 4193', name: 'IPv6 Unique Local (fc)', purpose: 'Centrally assigned IPv6 unique-local addresses. Comparable to RFC 1918 private space — routable within an organisation but not on the public internet.' },
+];
+
+function classifyPrivateRange(ip) {
+    const match = PRIVATE_RANGE_INFO.find(e => e.test.test(ip));
+    return match || { range: 'Private', rfc: 'RFC 1918', name: 'Private Address', purpose: 'This address falls within a reserved private range and is not routable on the public internet.' };
+}
+
 // ─────────────────────────────────────────────────────────────
 //  HELPERS
 // ─────────────────────────────────────────────────────────────
@@ -137,16 +153,19 @@ function performLookup(ip) {
     const asn  = asnData.autonomous_system_number       || 0;
     const { type, typeLabel } = classifyIP(org, asn);
 
+    const isPrivate = isPrivateIP(ip);
+
     const result = {
         ip,
         org,
         asn,
-        type,
-        typeLabel,
+        type:              isPrivate ? 'private'          : type,
+        typeLabel:         isPrivate ? 'Private / Internal' : typeLabel,
         country:           countryData.country?.names?.en            || '',
         registeredCountry: countryData.registered_country?.names?.en || '',
         continent:         countryData.continent?.names?.en           || '',
-        isPrivate:         isPrivateIP(ip),
+        isPrivate,
+        privateRange:      isPrivate ? classifyPrivateRange(ip) : null,
         version:           ip.includes(':') ? 'IPv6' : 'IPv4',
         timestamp:         formatTimestamp(),
     };
@@ -165,20 +184,37 @@ function buildTicketNote(r) {
     lines.push(`=== IP INVESTIGATION — ${r.ip} ===`);
     lines.push(`Investigated: ${r.timestamp}`);
     lines.push('');
-    lines.push(`IP Address   ${r.ip}`);
-    lines.push(`Version      ${r.version}`);
-    lines.push(`Country      ${r.country || '(unknown)'}${r.continent ? ' (' + r.continent + ')' : ''}`);
-    lines.push(`Organisation ${r.org     || '(unknown)'}`);
-    lines.push(`ASN          ${r.asn     ? 'AS' + r.asn : '(unknown)'}`);
-    lines.push(`Type         ${r.typeLabel}`);
-    lines.push(`Visibility   ${r.isPrivate ? 'Private / RFC1918' : 'Public'}`);
-    if (r.registeredCountry && r.registeredCountry !== r.country)
-        lines.push(`Reg. Country ${r.registeredCountry}  [MISMATCH]`);
-    if (r.flags?.length) {
+
+    if (r.isPrivate && r.privateRange) {
+        lines.push(`IP Address   ${r.ip}`);
+        lines.push(`Version      ${r.version}`);
+        lines.push(`Visibility   Private / Internal`);
+        lines.push(`Range        ${r.privateRange.range}`);
+        lines.push(`Standard     ${r.privateRange.rfc}`);
+        lines.push(`Type         ${r.privateRange.name}`);
         lines.push('');
-        lines.push('[FLAGS]');
-        for (const f of r.flags) lines.push(`  ${f.icon} ${f.label}`);
+        lines.push(`[NOTE]`);
+        lines.push(`  ${r.privateRange.purpose}`);
+        lines.push('');
+        lines.push('This is a private/internal address. It is not routable on the public internet.');
+        lines.push('If seen in external logs, the traffic was captured inside the network before reaching the internet.');
+    } else {
+        lines.push(`IP Address   ${r.ip}`);
+        lines.push(`Version      ${r.version}`);
+        lines.push(`Country      ${r.country || '(unknown)'}${r.continent ? ' (' + r.continent + ')' : ''}`);
+        lines.push(`Organisation ${r.org     || '(unknown)'}`);
+        lines.push(`ASN          ${r.asn     ? 'AS' + r.asn : '(unknown)'}`);
+        lines.push(`Type         ${r.typeLabel}`);
+        lines.push(`Visibility   Public`);
+        if (r.registeredCountry && r.registeredCountry !== r.country)
+            lines.push(`Reg. Country ${r.registeredCountry}  [MISMATCH]`);
+        if (r.flags?.length) {
+            lines.push('');
+            lines.push('[FLAGS]');
+            for (const f of r.flags) lines.push(`  ${f.icon} ${f.label}`);
+        }
     }
+
     lines.push('');
     lines.push('All data processed locally via MaxMind GeoLite2. No external lookup performed.');
     return lines.join('\n');

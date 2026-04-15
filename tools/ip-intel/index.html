@@ -113,8 +113,9 @@
                     <code class="text-base font-mono font-semibold text-white" x-text="ipResult?.ip"></code>
                     <span
                         class="px-2 py-0.5 rounded-md text-xs font-medium border"
-                        :class="ipResult?.type === 'cloud'   ? 'bg-blue-500/10 border-blue-500/20 text-blue-400'       :
+                        :class="ipResult?.type === 'cloud'   ? 'bg-blue-500/10 border-blue-500/20 text-blue-400'         :
                                 ipResult?.type === 'hosting' ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' :
+                                ipResult?.type === 'private' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' :
                                 'bg-gray-500/10 border-gray-500/20 text-gray-400'"
                         x-text="ipResult?.typeLabel"
                     ></span>
@@ -125,71 +126,109 @@
             <!-- Type context -->
             <div
                 class="px-6 py-3 border-b border-[#2a2d3a] text-xs leading-relaxed"
-                :class="ipResult?.context?.severity === 'high'    ? 'bg-red-500/5 text-red-400/80'       :
-                        ipResult?.context?.severity === 'medium'  ? 'bg-orange-500/5 text-orange-300/70' :
+                :class="ipResult?.context?.severity === 'high'    ? 'bg-red-500/5 text-red-400/80'           :
+                        ipResult?.context?.severity === 'medium'  ? 'bg-orange-500/5 text-orange-300/70'   :
+                        ipResult?.context?.severity === 'neutral' ? 'bg-indigo-500/5 text-indigo-300/70'   :
                         'text-gray-600'"
                 x-text="ipResult?.context?.text"
             ></div>
 
-            <!-- Result grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-0 divide-y md:divide-y-0 md:divide-x divide-[#2a2d3a]">
-
-                <div class="p-6 space-y-4">
-                    <div>
-                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Country</div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm font-medium text-white" x-text="ipResult?.country || '—'"></span>
-                            <span class="text-xs text-gray-500" x-text="ipResult?.continent ? '(' + ipResult.continent + ')' : ''"></span>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Organisation</div>
-                        <div class="text-sm font-medium text-white" x-text="ipResult?.org || '—'"></div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">ASN</div>
-                        <div class="text-sm font-mono text-gray-300" x-text="ipResult?.asn ? 'AS' + ipResult.asn : '—'"></div>
-                    </div>
-                </div>
-
-                <div class="p-6 space-y-4">
-                    <div>
-                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">IP Version</div>
-                        <div class="text-sm font-medium text-white" x-text="ipResult?.version || '—'"></div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Visibility</div>
-                        <div class="text-sm font-medium text-white" x-text="ipResult?.isPrivate ? 'Private / RFC1918' : 'Public'"></div>
-                    </div>
-                    <div x-show="ipResult?.registeredCountry && ipResult.registeredCountry !== ipResult.country">
-                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Registered Country</div>
-                        <div class="text-sm font-medium text-yellow-400" x-text="ipResult?.registeredCountry"></div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Risk flags -->
-            <div x-show="ipResult?.flags?.length" class="border-t border-[#2a2d3a]">
-                <div class="px-6 pt-4 pb-1 text-xs text-gray-600 uppercase tracking-wider">Risk Flags</div>
-                <div class="divide-y divide-[#2a2d3a]">
-                    <template x-for="flag in ipResult?.flags" :key="flag.label">
-                        <div class="flex items-start gap-3 px-6 py-4">
-                            <span class="flex-shrink-0 text-sm mt-0.5" x-text="flag.icon"></span>
+            <!-- Private IP card -->
+            <template x-if="ipResult?.isPrivate">
+                <div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-0 divide-y md:divide-y-0 md:divide-x divide-[#2a2d3a]">
+                        <div class="p-6 space-y-4">
                             <div>
-                                <div
-                                    class="text-sm font-medium mb-1"
-                                    :class="flag.severity === 'high'   ? 'text-red-400'    :
-                                            flag.severity === 'medium' ? 'text-orange-400'  :
-                                            'text-yellow-400'"
-                                    x-text="flag.label"
-                                ></div>
-                                <p class="text-xs text-gray-500 leading-relaxed" x-text="flag.detail"></p>
+                                <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Address Range</div>
+                                <div class="text-sm font-mono font-medium text-white" x-text="ipResult?.privateRange?.range || '—'"></div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Standard</div>
+                                <div class="text-sm font-medium text-indigo-400" x-text="ipResult?.privateRange?.rfc || '—'"></div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Type</div>
+                                <div class="text-sm font-medium text-white" x-text="ipResult?.privateRange?.name || '—'"></div>
                             </div>
                         </div>
-                    </template>
+                        <div class="p-6 space-y-4">
+                            <div>
+                                <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">IP Version</div>
+                                <div class="text-sm font-medium text-white" x-text="ipResult?.version || '—'"></div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Visibility</div>
+                                <div class="text-sm font-medium text-white">Private / Internal</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="border-t border-[#2a2d3a] px-6 py-5">
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-2">Purpose</div>
+                        <p class="text-sm text-gray-400 leading-relaxed" x-text="ipResult?.privateRange?.purpose"></p>
+                    </div>
                 </div>
-            </div>
+            </template>
+
+            <!-- Standard result grid (public IPs) -->
+            <template x-if="!ipResult?.isPrivate">
+                <div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-0 divide-y md:divide-y-0 md:divide-x divide-[#2a2d3a]">
+                        <div class="p-6 space-y-4">
+                            <div>
+                                <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Country</div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-medium text-white" x-text="ipResult?.country || '—'"></span>
+                                    <span class="text-xs text-gray-500" x-text="ipResult?.continent ? '(' + ipResult.continent + ')' : ''"></span>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Organisation</div>
+                                <div class="text-sm font-medium text-white" x-text="ipResult?.org || '—'"></div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">ASN</div>
+                                <div class="text-sm font-mono text-gray-300" x-text="ipResult?.asn ? 'AS' + ipResult.asn : '—'"></div>
+                            </div>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            <div>
+                                <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">IP Version</div>
+                                <div class="text-sm font-medium text-white" x-text="ipResult?.version || '—'"></div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Visibility</div>
+                                <div class="text-sm font-medium text-white">Public</div>
+                            </div>
+                            <div x-show="ipResult?.registeredCountry && ipResult.registeredCountry !== ipResult.country">
+                                <div class="text-xs text-gray-600 uppercase tracking-wider mb-1">Registered Country</div>
+                                <div class="text-sm font-medium text-yellow-400" x-text="ipResult?.registeredCountry"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Risk flags -->
+                    <div x-show="ipResult?.flags?.length" class="border-t border-[#2a2d3a]">
+                        <div class="px-6 pt-4 pb-1 text-xs text-gray-600 uppercase tracking-wider">Risk Flags</div>
+                        <div class="divide-y divide-[#2a2d3a]">
+                            <template x-for="flag in ipResult?.flags" :key="flag.label">
+                                <div class="flex items-start gap-3 px-6 py-4">
+                                    <span class="flex-shrink-0 text-sm mt-0.5" x-text="flag.icon"></span>
+                                    <div>
+                                        <div
+                                            class="text-sm font-medium mb-1"
+                                            :class="flag.severity === 'high'   ? 'text-red-400'    :
+                                                    flag.severity === 'medium' ? 'text-orange-400'  :
+                                                    'text-yellow-400'"
+                                            x-text="flag.label"
+                                        ></div>
+                                        <p class="text-xs text-gray-500 leading-relaxed" x-text="flag.detail"></p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
         </div>
 
         <!-- Ticket note -->
