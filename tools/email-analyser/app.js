@@ -579,6 +579,7 @@ function emailAnalyser() {
         ticketNote:    '',
         copied:        false,
         dnsLoading:    false,
+        dragOver:      false,
         _headers:      null,
 
         formatDelta,  // expose for template use
@@ -666,6 +667,33 @@ function emailAnalyser() {
                     this.dnsLoading = false;
                 }
             }
+        },
+
+        handleFileInput(event) {
+            const file = event.target.files?.[0];
+            if (file) this.handleFile(file);
+            // Reset so the same file can be re-uploaded if needed
+            event.target.value = '';
+        },
+
+        handleDrop(event) {
+            this.dragOver = false;
+            const file = event.dataTransfer.files?.[0];
+            if (file) this.handleFile(file);
+        },
+
+        handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target.result;
+                // .eml files: headers are everything before the first blank line
+                const match = content.search(/\r?\n\r?\n/);
+                this.emailInput = match !== -1 ? content.substring(0, match) : content;
+            };
+            reader.onerror = () => {
+                console.error('[Atlas] Failed to read file:', file.name);
+            };
+            reader.readAsText(file);
         },
 
         clear() {
