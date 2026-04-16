@@ -128,6 +128,26 @@ function formatTimestamp() {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  IPINFO  (enriched org/company name — external query)
+// ─────────────────────────────────────────────────────────────
+
+async function fetchIPInfoData(ip) {
+    const resp = await fetch(`https://ipinfo.io/${encodeURIComponent(ip)}/json`);
+    if (!resp.ok) throw new Error(`IPinfo ${resp.status}`);
+    const data = await resp.json();
+    // org field is "AS12345 Company Name" — strip the ASN prefix
+    const orgRaw    = data.org  || null;
+    const company   = orgRaw ? orgRaw.replace(/^AS\d+\s+/i, '') : null;
+    return {
+        company,
+        hostname: data.hostname || null,
+        city:     data.city     || null,
+        region:   data.region   || null,
+        timezone: data.timezone || null,
+    };
+}
+
+// ─────────────────────────────────────────────────────────────
 //  RDAP  (abuse contact — external query)
 // ─────────────────────────────────────────────────────────────
 
@@ -221,7 +241,7 @@ function performLookup(ip) {
 //  TICKET NOTE
 // ─────────────────────────────────────────────────────────────
 
-function buildTicketNote(r, rdap = null) {
+function buildTicketNote(r, rdap = null, ipinfo = null) {
     const lines = [];
     lines.push(`=== IP INVESTIGATION — ${r.ip} ===`);
     lines.push(`Investigated: ${r.timestamp}`);
@@ -244,12 +264,18 @@ function buildTicketNote(r, rdap = null) {
         lines.push(`IP Address   ${r.ip}`);
         lines.push(`Version      ${r.version}`);
         lines.push(`Country      ${r.country || '(unknown)'}${r.continent ? ' (' + r.continent + ')' : ''}`);
+        if (ipinfo?.city || ipinfo?.region)
+            lines.push(`Location     ${[ipinfo.city, ipinfo.region].filter(Boolean).join(', ')}`);
+        if (ipinfo?.company)
+            lines.push(`Company      ${ipinfo.company}`);
         lines.push(`Organisation ${r.org     || '(unknown)'}`);
         lines.push(`ASN          ${r.asn     ? 'AS' + r.asn : '(unknown)'}`);
         lines.push(`Type         ${r.typeLabel}`);
         lines.push(`Visibility   Public`);
         if (r.registeredCountry && r.registeredCountry !== r.country)
             lines.push(`Reg. Country ${r.registeredCountry}  [MISMATCH]`);
+        if (ipinfo?.hostname)
+            lines.push(`Hostname     ${ipinfo.hostname}`);
         if (r.flags?.length) {
             lines.push('');
             lines.push('[FLAGS]');
@@ -265,7 +291,10 @@ function buildTicketNote(r, rdap = null) {
     }
 
     lines.push('');
-    lines.push('GeoIP data: MaxMind GeoLite2 (local). Abuse contact: RDAP (external query).');
+    const sources = ['GeoIP: MaxMind GeoLite2 (local)'];
+    if (ipinfo) sources.push('org/location: IPinfo (external)');
+    if (rdap)   sources.push('abuse contact: RDAP (external)');
+    lines.push(sources.join(' · ') + '.');
     return lines.join('\n');
 }
 
@@ -275,15 +304,18 @@ function buildTicketNote(r, rdap = null) {
 
 function ipIntel() {
     return {
-        dbStatus:    'loading',
-        ipInput:     '',
-        ipResult:    null,
-        ticketNote:  '',
-        copied:      false,
-        inputError:  '',
-        rdapInfo:    null,
-        rdapLoading: false,
-        rdapError:   false,
+        dbStatus:      'loading',
+        ipInput:       '',
+        ipResult:      null,
+        ticketNote:    '',
+        copied:        false,
+        inputError:    '',
+        rdapInfo:      null,
+        rdapLoading:   false,
+        rdapError:     false,
+        ipinfoData:    null,
+        ipinfoLoading: false,
+        ipinfoError:   false,
 
         async init() {
             const params = new URLSearchParams(window.location.search);
@@ -305,22 +337,41 @@ function ipIntel() {
             if (!ip || this.dbStatus !== 'ready') return;
             const err = validateIP(ip);
             if (err) { this.inputError = err; this.ipResult = null; return; }
-            this.inputError  = '';
-            const result     = performLookup(ip);
-            this.ipResult    = result;
-            this.ticketNote  = result ? buildTicketNote(result) : 'Could not look up IP.';
-            this.copied      = false;
-            this.rdapInfo    = null;
-            this.rdapError   = false;
-            this.rdapLoading = false;
+            this.inputError    = '';
+            const result       = performLookup(ip);
+            this.ipResult      = result;
+            this.ticketNote    = result ? buildTicketNote(result) : 'Could not look up IP.';
+            this.copied        = false;
+            this.rdapInfo      = null;
+            this.rdapError     = false;
+            this.rdapLoading   = false;
+            this.ipinfoData    = null;
+            this.ipinfoLoading = false;
+            this.ipinfoError   = false;
+        },
+
+        async fetchIPInfo(ip) {
+            this.ipinfoLoading = true;
+            this.ipinfoError   = false;
+            try {
+                this.ipinfoData = await fetchIPInfoData(ip);
+                if (this.ipResult) {
+                    this.ticketNote = buildTicketNote(this.ipResult, this.rdapInfo, this.ipinfoData);
+                }
+            } catch {
+                this.ipinfoError = true;
+            } finally {
+                this.ipinfoLoading = false;
+            }
         },
 
         async fetchRDAP(ip) {
+            this.rdapLoading = true;
             try {
                 this.rdapInfo   = await fetchRDAPInfo(ip);
                 // Rebuild ticket note now that abuse contact is available
                 if (this.ipResult) {
-                    this.ticketNote = buildTicketNote(this.ipResult, this.rdapInfo);
+                    this.ticketNote = buildTicketNote(this.ipResult, this.rdapInfo, this.ipinfoData);
                 }
             } catch {
                 this.rdapError = true;

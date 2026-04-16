@@ -288,6 +288,68 @@
                             </div>
                         </template>
                     </div>
+
+                    <!-- IPinfo enrichment -->
+                    <div class="border-t border-[#2a2d3a] px-6 py-5">
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-3">Company &amp; Location</div>
+
+                        <!-- Prompt to fetch -->
+                        <template x-if="!ipinfoLoading && !ipinfoData && !ipinfoError">
+                            <div class="flex items-center gap-3">
+                                <button
+                                    @click="fetchIPInfo(ipResult.ip)"
+                                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#0f1117] text-gray-400 hover:text-white border border-[#2a2d3a] hover:border-indigo-500/50 transition-all"
+                                >
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                    </svg>
+                                    Look up company &amp; location
+                                </button>
+                                <span class="text-xs text-amber-600 font-medium">Sends IP to IPinfo.io (external)</span>
+                            </div>
+                        </template>
+
+                        <!-- Loading -->
+                        <template x-if="ipinfoLoading">
+                            <div class="flex items-center gap-2 text-xs text-gray-600">
+                                <svg class="w-3 h-3 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                </svg>
+                                Querying IPinfo.io…
+                            </div>
+                        </template>
+
+                        <!-- Results -->
+                        <template x-if="!ipinfoLoading && ipinfoData">
+                            <div class="space-y-3">
+                                <div x-show="ipinfoData.company">
+                                    <div class="text-xs text-gray-600 mb-0.5">Company</div>
+                                    <div class="text-sm font-medium text-white" x-text="ipinfoData.company"></div>
+                                </div>
+                                <div x-show="ipinfoData.city || ipinfoData.region">
+                                    <div class="text-xs text-gray-600 mb-0.5">City / Region</div>
+                                    <div class="text-sm text-gray-300" x-text="[ipinfoData.city, ipinfoData.region].filter(Boolean).join(', ')"></div>
+                                </div>
+                                <div x-show="ipinfoData.hostname">
+                                    <div class="text-xs text-gray-600 mb-0.5">Hostname</div>
+                                    <div class="text-sm font-mono text-gray-400" x-text="ipinfoData.hostname"></div>
+                                </div>
+                                <div class="text-xs text-amber-700 pt-1">Source: IPinfo.io (external query)</div>
+                            </div>
+                        </template>
+
+                        <!-- Failed -->
+                        <template x-if="!ipinfoLoading && ipinfoError">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-gray-600">Lookup failed</span>
+                                <button
+                                    @click="fetchIPInfo(ipResult.ip)"
+                                    class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                                >Retry</button>
+                            </div>
+                        </template>
+                    </div>
                 </div>
             </template>
         </div>
