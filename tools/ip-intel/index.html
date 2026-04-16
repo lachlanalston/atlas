@@ -66,7 +66,7 @@
 
     <div class="mb-8">
         <h1 class="text-2xl font-bold text-white mb-1">IP Intel</h1>
-        <p class="text-sm text-gray-500">Investigate any IP address — country, organisation, ASN and risk flags. All lookups run locally, no data leaves your browser.</p>
+        <p class="text-sm text-gray-500">Investigate any IP address — country, organisation, ASN, risk flags and abuse contacts. GeoIP lookups run locally; abuse contact uses an external RDAP query.</p>
     </div>
 
     <!-- Input -->
@@ -226,6 +226,67 @@
                                 </div>
                             </template>
                         </div>
+                    </div>
+
+                    <!-- Abuse Contact -->
+                    <div class="border-t border-[#2a2d3a] px-6 py-5">
+                        <div class="text-xs text-gray-600 uppercase tracking-wider mb-3">Abuse Contact</div>
+
+                        <!-- Prompt to fetch -->
+                        <template x-if="!rdapLoading && !rdapInfo && !rdapError">
+                            <div class="flex items-center gap-3">
+                                <button
+                                    @click="fetchRDAP(ipResult.ip)"
+                                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#0f1117] text-gray-400 hover:text-white border border-[#2a2d3a] hover:border-indigo-500/50 transition-all"
+                                >
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                    </svg>
+                                    Look up abuse contact
+                                </button>
+                                <span class="text-xs text-gray-700">Sends IP to ARIN/RIPE RDAP</span>
+                            </div>
+                        </template>
+
+                        <!-- Loading -->
+                        <template x-if="rdapLoading">
+                            <div class="flex items-center gap-2 text-xs text-gray-600">
+                                <svg class="w-3 h-3 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                </svg>
+                                Looking up abuse contact…
+                            </div>
+                        </template>
+
+                        <!-- Abuse contact found -->
+                        <template x-if="!rdapLoading && rdapInfo?.abuse?.email">
+                            <div class="space-y-1.5">
+                                <div x-show="rdapInfo.abuse.name" class="text-sm font-medium text-white" x-text="rdapInfo.abuse.name"></div>
+                                <a
+                                    :href="'mailto:' + rdapInfo.abuse.email"
+                                    class="block text-sm text-indigo-400 hover:text-indigo-300 transition-colors font-mono"
+                                    x-text="rdapInfo.abuse.email"
+                                ></a>
+                                <div x-show="rdapInfo.abuse.phone" class="text-sm text-gray-400 font-mono" x-text="rdapInfo.abuse.phone"></div>
+                            </div>
+                        </template>
+
+                        <!-- No abuse contact in RDAP response -->
+                        <template x-if="!rdapLoading && rdapInfo && !rdapInfo.abuse?.email">
+                            <div class="text-xs text-gray-600">No abuse contact found in RDAP record</div>
+                        </template>
+
+                        <!-- RDAP fetch failed -->
+                        <template x-if="!rdapLoading && rdapError">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-gray-600">Lookup failed</span>
+                                <button
+                                    @click="rdapError = false; fetchRDAP(ipResult.ip)"
+                                    class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                                >Retry</button>
+                            </div>
+                        </template>
                     </div>
                 </div>
             </template>

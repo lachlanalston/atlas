@@ -71,7 +71,7 @@
         <!-- Badge -->
         <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-xs font-medium mb-8">
             <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
-            Built for helpdesk technicians · Client data stays in your browser
+            Built for helpdesk technicians · No accounts · No analytics · No data retention
         </div>
 
         <!-- Heading -->
@@ -85,7 +85,7 @@
         <!-- Subheading -->
         <p class="text-lg text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed">
             Helpdesk tools built for technicians. No accounts, no data retention.
-            Investigate IPs and email headers without sending client data to third-party services.
+            GeoIP lookups run entirely in your browser. Abuse contact lookups query official internet registries (ARIN/RIPE) — no commercial analytics, no tracking.
         </p>
 
         <!-- Quick IP lookup -->
@@ -134,7 +134,7 @@
             </div>
             <div>
                 <h3 class="text-sm font-semibold text-white mb-1">Private by design</h3>
-                <p class="text-sm text-gray-500 leading-relaxed">IP addresses and email headers are processed locally. DNS record checks send domain names only — no client data leaves your browser.</p>
+                <p class="text-sm text-gray-500 leading-relaxed">GeoIP data (country, org, ASN) is processed locally using bundled databases. Abuse contact lookups query official RIR registries. Email DNS checks send domain names only.</p>
             </div>
         </div>
 
@@ -197,14 +197,14 @@
 
             <h3 class="text-base font-semibold text-white mb-2">IP Intel</h3>
             <p class="text-sm text-gray-500 leading-relaxed mb-4">
-                Investigate any IP address — country, ASN, organisation, risk flags. Fully offline, no data leaves your browser.
+                Investigate any IP address — country, ASN, organisation, risk flags and abuse contacts. GeoIP runs locally; abuse contact queries official internet registries.
             </p>
 
             <!-- Tags -->
             <div class="flex flex-wrap gap-2">
                 <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">IP Lookup</span>
                 <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">IPv4 &amp; IPv6</span>
-                <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">Offline</span>
+                <span class="px-2 py-0.5 rounded-md bg-[#0f1117] border border-[#2a2d3a] text-xs text-gray-500">Local GeoIP</span>
             </div>
 
             <!-- Arrow -->
@@ -303,9 +303,9 @@
             <span class="text-sm text-gray-500">Atlas — Helpdesk Intelligence Platform</span>
         </div>
         <p class="text-xs text-gray-700">
-            IP data from
+            GeoIP data from
             <a href="https://www.maxmind.com" target="_blank" rel="noopener" class="text-gray-600 hover:text-gray-400 underline underline-offset-2">MaxMind GeoLite2</a>
-            · IP lookups are fully local · Email DNS checks via Cloudflare (domain names only)
+            · GeoIP lookups are fully local · Abuse contacts via ARIN/RIPE RDAP · Email DNS checks via Cloudflare (domain names only)
         </p>
     </div>
 </footer>

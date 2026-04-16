@@ -128,6 +128,48 @@ function formatTimestamp() {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  RDAP  (abuse contact — external query)
+// ─────────────────────────────────────────────────────────────
+
+function parseVCard(vcardArray) {
+    if (!Array.isArray(vcardArray) || !Array.isArray(vcardArray[1])) return {};
+    const out = {};
+    for (const field of vcardArray[1]) {
+        const [prop, , , value] = field;
+        if (prop === 'fn'    && !out.fn)    out.fn    = value;
+        if (prop === 'email' && !out.email) out.email = Array.isArray(value) ? value[0] : value;
+        if (prop === 'tel'   && !out.tel) {
+            const v = Array.isArray(value) ? value[0] : value;
+            out.tel = typeof v === 'string' ? v.replace(/^tel:/i, '') : String(v);
+        }
+    }
+    return out;
+}
+
+function extractAbuse(entities) {
+    for (const e of (entities || [])) {
+        if ((e.roles || []).includes('abuse')) {
+            const v = parseVCard(e.vcardArray);
+            return { name: v.fn || null, email: v.email || null, phone: v.tel || null };
+        }
+        const nested = extractAbuse(e.entities);
+        if (nested) return nested;
+    }
+    return null;
+}
+
+async function fetchRDAPInfo(ip) {
+    const url  = `https://rdap.arin.net/bootstrap/ip/${encodeURIComponent(ip)}`;
+    const resp = await fetch(url, { headers: { Accept: 'application/rdap+json, application/json' } });
+    if (!resp.ok) throw new Error(`RDAP ${resp.status}`);
+    const data = await resp.json();
+    return {
+        networkName: data.name || null,
+        abuse:       extractAbuse(data.entities),
+    };
+}
+
+// ─────────────────────────────────────────────────────────────
 //  MMDB LOADER
 // ─────────────────────────────────────────────────────────────
 
@@ -179,7 +221,7 @@ function performLookup(ip) {
 //  TICKET NOTE
 // ─────────────────────────────────────────────────────────────
 
-function buildTicketNote(r) {
+function buildTicketNote(r, rdap = null) {
     const lines = [];
     lines.push(`=== IP INVESTIGATION — ${r.ip} ===`);
     lines.push(`Investigated: ${r.timestamp}`);
@@ -213,10 +255,17 @@ function buildTicketNote(r) {
             lines.push('[FLAGS]');
             for (const f of r.flags) lines.push(`  ${f.icon} ${f.label}`);
         }
+        if (rdap?.abuse?.email) {
+            lines.push('');
+            lines.push('[ABUSE CONTACT]');
+            if (rdap.abuse.name)  lines.push(`  Name    ${rdap.abuse.name}`);
+            if (rdap.abuse.email) lines.push(`  Email   ${rdap.abuse.email}`);
+            if (rdap.abuse.phone) lines.push(`  Phone   ${rdap.abuse.phone}`);
+        }
     }
 
     lines.push('');
-    lines.push('All data processed locally via MaxMind GeoLite2. No external lookup performed.');
+    lines.push('GeoIP data: MaxMind GeoLite2 (local). Abuse contact: RDAP (external query).');
     return lines.join('\n');
 }
 
@@ -226,12 +275,15 @@ function buildTicketNote(r) {
 
 function ipIntel() {
     return {
-        dbStatus:   'loading',
-        ipInput:    '',
-        ipResult:   null,
-        ticketNote: '',
-        copied:     false,
-        inputError: '',
+        dbStatus:    'loading',
+        ipInput:     '',
+        ipResult:    null,
+        ticketNote:  '',
+        copied:      false,
+        inputError:  '',
+        rdapInfo:    null,
+        rdapLoading: false,
+        rdapError:   false,
 
         async init() {
             const params = new URLSearchParams(window.location.search);
@@ -253,11 +305,28 @@ function ipIntel() {
             if (!ip || this.dbStatus !== 'ready') return;
             const err = validateIP(ip);
             if (err) { this.inputError = err; this.ipResult = null; return; }
-            this.inputError = '';
-            const result    = performLookup(ip);
-            this.ipResult   = result;
-            this.ticketNote = result ? buildTicketNote(result) : 'Could not look up IP.';
-            this.copied     = false;
+            this.inputError  = '';
+            const result     = performLookup(ip);
+            this.ipResult    = result;
+            this.ticketNote  = result ? buildTicketNote(result) : 'Could not look up IP.';
+            this.copied      = false;
+            this.rdapInfo    = null;
+            this.rdapError   = false;
+            this.rdapLoading = false;
+        },
+
+        async fetchRDAP(ip) {
+            try {
+                this.rdapInfo   = await fetchRDAPInfo(ip);
+                // Rebuild ticket note now that abuse contact is available
+                if (this.ipResult) {
+                    this.ticketNote = buildTicketNote(this.ipResult, this.rdapInfo);
+                }
+            } catch {
+                this.rdapError = true;
+            } finally {
+                this.rdapLoading = false;
+            }
         },
 
         async copyNote() {
